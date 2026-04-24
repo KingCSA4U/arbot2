@@ -1,2 +1,2 @@
 ccxt==4.3.78
-python-dotenv
+python-dotenv==1.1.1

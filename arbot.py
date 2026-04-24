@@ -1,9 +1,6 @@
-import os
 import ccxt.async_support as ccxt  # Use the async-supported version
-import time
 import logging
 from dotenv import load_dotenv
-import asyncio
 
 load_dotenv()
 
@@ -58,7 +55,7 @@ class ARbot:
             self.tickers = await self.exchange.fetch_tickers()
             return True
         except Exception as e:
-            self.logger.error(f"Error fetching tickers: {e}")
+            self.logger.exception("Error fetching tickers: %s", e)
             return False
 
     # ------------------------------------------------------------------
@@ -95,7 +92,7 @@ class ARbot:
     # Opportunity detection
     # ------------------------------------------------------------------
 
-    async def _leg_rate(self, symbol: str, direction: str) -> float | None:
+    def _leg_rate(self, symbol: str, direction: str) -> float | None:
         """
         Return the effective exchange rate for one leg.
         buying  → we pay the ask  → rate = 1 / ask  (base units per quote)
@@ -133,7 +130,7 @@ class ARbot:
             amount = 1.0
             valid = True
             for symbol, direction in zip(legs, directions):
-                rate = await self._leg_rate(symbol, direction)
+                rate = self._leg_rate(symbol, direction)
                 if rate is None:
                     valid = False
                     break
