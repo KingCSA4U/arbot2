@@ -9,7 +9,7 @@ POLL_INTERVAL = 0.5
 
 async def main() -> None:
     bot = await ARbot.create(os.getenv("API_KEY"), os.getenv("API_SECRET"))
-    paths = bot.generate_triangular_paths(COINS, BASE)
+    paths = await bot.generate_triangular_paths(COINS, BASE)
 
     print(f"Monitoring {len(paths)} paths. Press Ctrl+C to stop.\n")
 
@@ -27,11 +27,15 @@ async def main() -> None:
 
             await asyncio.sleep(POLL_INTERVAL)
 
-    except KeyboardInterrupt:
+    except asyncio.CancelledError:
         print("\nShutting down gracefully.")
         bot.logger.info("BOT shut down by user")
+    finally:
+        print("\nReleasing MEXC resources...")
+        bot.logger.info("Realeasing MEXC resources")
         await bot.exchange.close()
 
 
 if __name__ == "__main__":
+    # asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(main())
