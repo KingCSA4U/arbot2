@@ -19,11 +19,13 @@ async def main() -> None:
 
     try:
         bot = await ARbot.create(api_key, api_secret)
-        paths = await bot.generate_triangular_paths(COINS, BASE)
+        paths,symbols = await bot.generate_triangular_paths(COINS, BASE)
         print(f"Monitoring {len(paths)} paths. Press Ctrl+C to stop.\n")
 
         while True:
-            try:
+            try:        
+                new_tickers = await bot.exchange.watch_tickers(symbols)
+                bot.tickers.update(new_tickers)
                 opps = await bot.opportunity_checker(paths, BASE)
                 consecutive_failures = 0
 

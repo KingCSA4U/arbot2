@@ -1,4 +1,4 @@
-import ccxt.async_support as ccxt  # Use the async-supported version
+import ccxt.pro as ccxt  # Use the async-supported version
 import logging
 from dotenv import load_dotenv
 
@@ -36,6 +36,7 @@ class ARbot:
         self.markets = await self.exchange.load_markets()
         await self.exchange.load_time_difference()
         self.tickers = {}
+        # self.symbols = []
         balance = await self.get_balance()
         self.logger.info("BOT initialised")
         self.logger.info(f"Starting balance: {balance} USDT")
@@ -49,45 +50,63 @@ class ARbot:
         balance = await self.exchange.fetch_balance()
         return balance["free"].get("USDT", 0.0)
 
-    async def update_tickers(self) -> bool:
-        """Fetch all tickers and cache them. Returns True on success."""
-        try:
-            self.tickers = await self.exchange.fetch_tickers()
-            return True
-        except Exception as e:
-            self.logger.exception("Error fetching tickers: %s", e)
-            return False
+    # async def run_loop(self):
+    #     """Fetch all tickers and cache them. Returns True on success."""
+    #     while True:
+    #         try:
+    #             new_tickers = await self.exchange.watch_tickers(self.symbols)
+    #             self.tickers.update(new_tickers)
+    #             return True
+    #         except Exception as e:
+    #             self.logger.exception("Error fetching tickers: %s", e)
+    #             # return False
 
     # ------------------------------------------------------------------
     # Path generation
     # ------------------------------------------------------------------
 
-    async def generate_triangular_paths(self, coins: list[str], base: str) -> list[dict]:
-        paths = []
+    async def generate_triangular_paths(self, coins: list[str], base: str) -> tuple[list[dict], list[str]]:
+            paths = []
+            symbols = set()
 
-        for a in coins:
-            for b in coins:
-                if a == b:
-                    continue
+            for a in coins:
+                for b in coins:
+                    if a == b:
+                        continue
 
-                pair1 = f"{a}/{base}"  # BUY a with base   (ask)
-                pair2 = f"{a}/{b}"  # SELL a for b       (bid)
-                pair3 = f"{b}/{base}"  # SELL b for base    (bid)
+                    pair1 = f"{a}/{base}"  # BUY a with base   (ask)
+                    pair2 = f"{a}/{b}"  # SELL a for b       (bid)
+                    pair2b = f"{b}/{a}"  # SELL b for a       (bid)
+                    pair3 = f"{b}/{base}"  # SELL b for base    (bid)
+                    pair3b = f"{b}/{base}"  # SELL b for base    (bid)
 
-                if (
-                    pair1 in self.markets
-                    and pair2 in self.markets
-                    and pair3 in self.markets
-                ):
-                    paths.append(
-                        {
-                            "legs": (pair1, pair2, pair3),
-                            "directions": ("buy", "sell", "sell"),
-                        }
-                    )
+                    if (
+                        pair1 in self.markets
+                        and pair2 in self.markets
+                        and pair3 in self.markets
+                    ):
+                        paths.append(
+                            {
+                                "legs": (pair1, pair2, pair3),
+                                "directions": ("buy", "sell", "sell"),
+                            })
+                        symbols.update([pair1, pair2, pair3])
+                    elif (
+                        pair1 in self.markets
+                        and pair2b in self.markets
+                        and pair3b in self.markets
+                    ):
+                        paths.append(
+                            {
+                                "legs": (pair1, pair2b, pair3b),
+                                "directions": ("buy", "sell", "sell"),
+                            }
+                        )
+                        symbols.update([pair1, pair2b, pair3b])
 
-        self.logger.info(f"{len(paths)} triangular paths generated")
-        return paths
+
+            self.logger.info(f"{len(paths)} triangular paths and {len(symbols)} symbols generated")
+            return paths,list(symbols)
     # ------------------------------------------------------------------
     # Opportunity detection
     # ------------------------------------------------------------------
@@ -114,8 +133,8 @@ class ARbot:
             return price
 
     async def opportunity_checker(self, paths: list[dict], base: str) -> list[dict]:
-        if not await self.update_tickers():
-            return []
+        # if not await self.update_tickers():
+        #     return []
 
         opportunities = []
 
